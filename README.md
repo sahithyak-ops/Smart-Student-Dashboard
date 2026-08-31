@@ -1,6 +1,6 @@
-# StudyFlow - Smart Student Productivity Dashboard
+# LUNERA - Smart Student Productivity Dashboard
 
-StudyFlow is a simple full-stack student productivity dashboard built to help students manage tasks, subjects, study time, and productivity.
+Lunera is a simple full-stack student productivity dashboard built to help students manage tasks, subjects, study time, and productivity.
 
 ## Features
 
