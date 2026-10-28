@@ -26,7 +26,7 @@ class Task(Base):
     due_date = Column(Date, nullable=True)
     completed = Column(Boolean, default=False)
 
-    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True)
+    subject_id = Column(Integer, ForeignKey("subjects.id", ondelete="SET NULL"), nullable=True)
 
     subject = relationship("Subject", back_populates="tasks")
 
@@ -35,7 +35,7 @@ class StudySession(Base):
     __tablename__ = "study_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
-    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True)
+    subject_id = Column(Integer, ForeignKey("subjects.id", ondelete="SET NULL"), nullable=True)
     duration = Column(Float, nullable=False)
     date = Column(Date, nullable=False)
 

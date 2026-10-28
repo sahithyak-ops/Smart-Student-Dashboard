@@ -398,3 +398,39 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .profile-edit-button:hover { background: #edf3eb; border-color: #b8cbbb; transform: translateY(-1px); }
 .profile-edit-button svg { width: 16px; height: 16px; stroke-width: 1.8; }
 @media (max-width: 600px) { .topbar-actions { justify-content: flex-start; width: 100%; } }
+
+/* Readable type scale and CRUD dialog: retains Lunera's existing visual system. */
+:root { --font-body: 16px; --font-support: 14px; --font-button: 16px; }
+body { font-size: var(--font-body); line-height: 1.5; }
+.nav-btn { font-size: 16px; }
+.topbar h2, .page-title h2 { font-size: 32px; font-weight: 700; }
+.card-header h3 { font-size: 24px; font-weight: 700; }
+.topbar p, .page-title p, .task-info p, .subject-footer, .date, .empty { font-size: 14px; }
+.task-info h4 { font-size: 18px; line-height: 1.45; }
+.subject-name strong { font-size: 21px; font-weight: 700; line-height: 1.4; }
+.subject-name span, .priority, .chart-value, .chart-day, .analytics-subject-header { font-size: 14px; }
+.card-header button, .page-title > button, .form button, .task-actions button, .subject-footer button, .timer-buttons button, .profile-edit-button { font-size: var(--font-button); }
+.form input, .form select, .timer-subject select { font-size: 16px; }
+.timer-subject label, #welcomeForm label { font-size: 15px; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgba(53,107,75,.36); outline-offset: 2px; }
+button:disabled { cursor: wait; opacity: .6; }
+.entity-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.danger-action, .danger-button { color: #9d2635 !important; border-color: #e5b7be !important; background: #fff5f6 !important; }
+.danger-action:hover, .danger-button:hover:not(:disabled) { background: #fce6e9 !important; border-color: #c76c78 !important; }
+.app-dialog-overlay { position: fixed; inset: 0; z-index: 1100; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(24,39,29,.48); backdrop-filter: blur(5px); }
+.app-dialog-overlay.is-visible { display: flex; }
+.app-dialog { position: relative; width: min(100%, 540px); max-height: calc(100vh - 40px); overflow-y: auto; padding: 30px; border: 1px solid rgba(255,255,255,.8); border-radius: 22px; background: #fbfcf8; box-shadow: 0 24px 80px rgba(20,39,26,.25); }
+.app-dialog h2 { margin: 0 32px 16px 0; color: var(--ink); font: 700 24px/1.3 'Manrope', sans-serif; }
+.app-dialog p { margin-bottom: 16px; font-size: 16px; line-height: 1.55; }
+.app-dialog form { display: grid; gap: 8px; }
+.app-dialog label { margin-top: 8px; color: #35453a; font-size: 15px; font-weight: 700; }
+.app-dialog label span { color: var(--muted); font-weight: 400; }
+.app-dialog input, .app-dialog select, .app-dialog textarea { width: 100%; padding: 11px 12px; border: 1px solid #dfe6dc; border-radius: 10px; color: var(--ink); background: white; font: 400 16px/1.5 'DM Sans', sans-serif; }
+.dialog-close { position: absolute; top: 17px; right: 18px; width: 36px; height: 36px; border: 1px solid #dfe6dc; border-radius: 9px; background: white; color: var(--ink); cursor: pointer; font-size: 24px; line-height: 1; }
+.dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.dialog-actions button { min-height: 44px; border: 1px solid var(--green); border-radius: 10px; padding: 9px 15px; color: white; background: var(--green); cursor: pointer; font-size: 16px; font-weight: 700; }
+.dialog-actions .secondary-button { border-color: #d8e1d5; color: #526653; background: #f5f8f2; }
+.form-message { margin: 8px 0 0 !important; padding: 10px 12px; border-radius: 9px; font-size: 14px !important; }
+.form-message.error { color: #8e1e2e; background: #fff0f2; }
+.dialog-warning { padding: 12px; border-left: 4px solid #b27821; border-radius: 6px; color: #684a18; background: #fff8e8; }
+@media (max-width: 760px) { .topbar h2, .page-title h2 { font-size: 28px; } .card-header h3 { font-size: 21px; } .subject-name strong { font-size: 19px; } .task-info h4 { font-size: 17px; } .app-dialog { padding: 23px 18px; border-radius: 18px; } .entity-actions { justify-content: flex-start; } }

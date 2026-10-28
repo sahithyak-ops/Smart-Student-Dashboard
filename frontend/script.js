@@ -2348,4 +2348,186 @@ async function initializeApp() {
 }
 
 
-initializeApp();
+// Initialization runs after the enhanced CRUD renderers below are available.
+
+// =====================================================
+// CRUD AND ACCESSIBILITY ENHANCEMENTS
+// =====================================================
+// These functions retain the existing API and visual language while adding
+// safe edit/delete flows. Server responses remain the source of truth.
+let tasksCache = [];
+
+function apiError(data, fallback) {
+    if (typeof data?.detail === "string") return data.detail;
+    if (data?.detail?.message) return data.detail.message;
+    return fallback;
+}
+
+async function requestJSON(url, options = {}) {
+    const response = await fetch(url, options);
+    const data = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(apiError(data, "The request could not be completed."));
+    return data;
+}
+
+function subjectOptions(selectedId = null) {
+    return `<option value="">No subject</option>${subjectsCache.map(subject =>
+        `<option value="${subject.id}" ${subject.id === selectedId ? "selected" : ""}>${escapeHTML(subject.name)}</option>`
+    ).join("")}`;
+}
+
+function ensureDialog() {
+    if (document.getElementById("appDialog")) return;
+    document.body.insertAdjacentHTML("beforeend", `
+      <div class="app-dialog-overlay" id="appDialog" aria-hidden="true">
+        <section class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
+          <button class="dialog-close" type="button" aria-label="Close dialog" onclick="closeAppDialog()">×</button>
+          <div id="appDialogContent"></div>
+        </section>
+      </div>`);
+}
+
+function openAppDialog(content) {
+    ensureDialog();
+    const dialog = document.getElementById("appDialog");
+    document.getElementById("appDialogContent").innerHTML = content;
+    dialog.classList.add("is-visible");
+    dialog.setAttribute("aria-hidden", "false");
+    window.setTimeout(() => dialog.querySelector("input, button, select, textarea")?.focus(), 0);
+}
+
+function closeAppDialog() {
+    const dialog = document.getElementById("appDialog");
+    if (!dialog) return;
+    dialog.classList.remove("is-visible");
+    dialog.setAttribute("aria-hidden", "true");
+}
+
+function dialogMessage(message, type = "error") {
+    const target = document.getElementById("dialogMessage");
+    if (target) target.innerHTML = `<p class="form-message ${type}" role="status">${escapeHTML(message)}</p>`;
+}
+
+async function loadSubjects() {
+    try {
+        const subjects = await requestJSON(`${API_URL}/subjects`);
+        subjectsCache = subjects;
+        const count = document.getElementById("subjectCount");
+        if (count) count.textContent = subjects.length;
+        ["timerSubject", "taskSubject", "dashboardTaskSubject"].forEach(id => {
+            const select = document.getElementById(id);
+            if (select) select.innerHTML = id === "timerSubject"
+                ? `<option value="">Select subject</option>${subjects.map(s => `<option value="${s.id}">${escapeHTML(s.name)}</option>`).join("")}`
+                : subjectOptions();
+        });
+        const render = (subject, actions) => {
+            const progress = subject.total_topics ? (subject.completed_topics / subject.total_topics) * 100 : 0;
+            return `<div class="subject"><div class="subject-name"><strong>${escapeHTML(subject.name)}</strong><span>${subject.completed_topics}/${subject.total_topics}</span></div>
+              <div class="progress"><div class="progress-bar" style="width:${progress}%"></div></div>
+              <div class="subject-footer"><span>${Math.round(progress)}% completed</span>${actions ? `<div class="entity-actions"><button type="button" onclick="openSubjectEditor(${subject.id})" aria-label="Edit ${escapeHTML(subject.name)}">✎ Edit</button><button type="button" class="danger-action" onclick="confirmSubjectDelete(${subject.id})" aria-label="Delete ${escapeHTML(subject.name)}">🗑 Delete</button><button type="button" onclick="updateProgress(${subject.id}, ${subject.total_topics})">Update</button></div>` : ""}</div></div>`;
+        };
+        const list = document.getElementById("subjectsList");
+        if (list) list.innerHTML = subjects.length ? subjects.map(s => render(s, true)).join("") : `<p class="empty">No subjects added yet.</p>`;
+        const dashboard = document.getElementById("dashboardSubjects");
+        if (dashboard) dashboard.innerHTML = subjects.length ? subjects.slice(0, 4).map(s => render(s, false)).join("") : `<p class="empty">Add your first subject.</p>`;
+        if (window.lucide) window.lucide.createIcons();
+        await loadSubjectAnalytics();
+    } catch (error) { console.error("Error loading subjects:", error); }
+}
+
+async function loadTasks() {
+    try {
+        const tasks = await requestJSON(`${API_URL}/tasks`);
+        tasksCache = tasks;
+        const count = document.getElementById("taskCount");
+        if (count) count.textContent = tasks.length;
+        const render = task => {
+            const subject = getSubjectName(task.subject_id);
+            return `<div class="task ${task.completed ? "completed" : ""}"><div class="task-info"><h4>${task.completed ? "✓ " : ""}${escapeHTML(task.title)}</h4><p>${escapeHTML(task.description || "No description")}</p>${subject ? `<p>${escapeHTML(subject)}</p>` : ""}${task.due_date ? `<p>Due: ${task.due_date}</p>` : ""}</div><div class="task-actions"><span class="priority">${escapeHTML(task.priority)}</span><button type="button" onclick="toggleTask(${task.id}, this)">${task.completed ? "Reopen" : "Complete"}</button><button type="button" onclick="openTaskEditor(${task.id})" aria-label="Edit ${escapeHTML(task.title)}">✎ Edit</button><button type="button" class="danger-action" onclick="confirmTaskDelete(${task.id})" aria-label="Delete ${escapeHTML(task.title)}">🗑 Delete</button></div></div>`;
+        };
+        const list = document.getElementById("tasksList");
+        if (list) list.innerHTML = tasks.length ? tasks.map(render).join("") : `<p class="empty">No tasks yet. Add your first task!</p>`;
+        const dashboard = document.getElementById("dashboardTasks");
+        if (dashboard) dashboard.innerHTML = tasks.length ? tasks.slice(-3).reverse().map(render).join("") : `<p class="empty">No tasks for now.</p>`;
+        await loadTaskAnalytics();
+    } catch (error) { console.error("Error loading tasks:", error); }
+}
+
+async function createTaskFrom(prefix) {
+    const ids = prefix ? {title: "dashboardTaskTitle", subject: "dashboardTaskSubject", priority: "dashboardTaskPriority", due: "dashboardTaskDueDate", form: "dashboardTaskForm"} : {title: "taskTitle", subject: "taskSubject", priority: "taskPriority", due: "taskDueDate", form: "taskForm"};
+    const title = document.getElementById(ids.title);
+    const subject = document.getElementById(ids.subject);
+    const priority = document.getElementById(ids.priority);
+    const dueDate = document.getElementById(ids.due);
+    const button = document.querySelector(`#${ids.form} button`);
+    if (!title.value.trim()) return alert("Please enter a task title.");
+    button.disabled = true;
+    try {
+        await requestJSON(`${API_URL}/tasks`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({title: title.value.trim(), description: "", priority: priority.value, due_date: dueDate.value || null, subject_id: subject.value ? Number(subject.value) : null}) });
+        title.value = ""; subject.value = ""; dueDate.value = "";
+        document.getElementById(ids.form).classList.add("hidden");
+        await loadTasks();
+    } catch (error) { alert(error.message); } finally { button.disabled = false; }
+}
+function addTask() { return createTaskFrom(""); }
+function addDashboardTask() { return createTaskFrom("dashboard"); }
+
+async function createSubjectFrom(prefix) {
+    const ids = prefix ? {name: "dashboardSubjectName", total: "dashboardTotalTopics", form: "dashboardSubjectForm"} : {name: "subjectName", total: "totalTopics", form: "subjectForm"};
+    const name = document.getElementById(ids.name);
+    const total = document.getElementById(ids.total);
+    const button = document.querySelector(`#${ids.form} button`);
+    if (!name.value.trim()) return alert("Please enter a subject name.");
+    button.disabled = true;
+    try {
+        await requestJSON(`${API_URL}/subjects`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:name.value.trim(), total_topics:Number(total.value) || 0})});
+        name.value = ""; total.value = ""; document.getElementById(ids.form).classList.add("hidden"); await loadSubjects(); await loadTasks();
+    } catch (error) { alert(error.message); } finally { button.disabled = false; }
+}
+function addSubject() { return createSubjectFrom(""); }
+function addDashboardSubject() { return createSubjectFrom("dashboard"); }
+
+function openSubjectEditor(id) {
+    const subject = subjectsCache.find(s => s.id === id); if (!subject) return;
+    openAppDialog(`<h2 id="appDialogTitle">Edit subject</h2><form onsubmit="saveSubject(event, ${id})"><label for="editSubjectName">Subject name</label><input id="editSubjectName" required maxlength="120" value="${escapeHTML(subject.name)}"><label for="editSubjectTotal">Total topics</label><input id="editSubjectTotal" type="number" min="0" value="${subject.total_topics}"><label for="editSubjectCompleted">Completed topics</label><input id="editSubjectCompleted" type="number" min="0" value="${subject.completed_topics}"><div id="dialogMessage"></div><div class="dialog-actions"><button type="button" class="secondary-button" onclick="closeAppDialog()">Cancel</button><button type="submit">Save Changes</button></div></form>`);
+}
+async function saveSubject(event, id) {
+    event.preventDefault(); const button = event.submitter; const name = document.getElementById("editSubjectName").value.trim(); const total = Number(document.getElementById("editSubjectTotal").value); const completed = Number(document.getElementById("editSubjectCompleted").value);
+    if (!name || total < 0 || completed < 0 || completed > total) return dialogMessage("Enter a name and a valid completed-topic count.");
+    button.disabled = true; try { await requestJSON(`${API_URL}/subjects/${id}`, {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,total_topics:total,completed_topics:completed})}); closeAppDialog(); await loadSubjects(); await loadTasks(); } catch (error) { dialogMessage(error.message); } finally { button.disabled = false; }
+}
+async function confirmSubjectDelete(id) {
+    const subject = subjectsCache.find(s => s.id === id); if (!subject) return;
+    try {
+        const deps = await requestJSON(`${API_URL}/subjects/${id}/dependencies`);
+        const linked = deps.tasks || deps.study_sessions ? `<p class="dialog-warning">This subject has ${deps.tasks} linked task(s) and ${deps.study_sessions} study record(s). To protect historical data, it cannot be deleted until these are reassigned or removed.</p>` : "";
+        openAppDialog(`<h2 id="appDialogTitle">Delete subject?</h2><p>Delete this subject? This action may affect associated tasks and study records.</p>${linked}<div id="dialogMessage"></div><div class="dialog-actions"><button type="button" class="secondary-button" onclick="closeAppDialog()">Cancel</button><button type="button" class="danger-button" ${deps.tasks || deps.study_sessions ? "disabled" : ""} onclick="deleteSubject(${id}, this)">Delete Subject</button></div>`);
+    } catch (error) { alert(error.message); }
+}
+async function deleteSubject(id, button) { button.disabled = true; try { await requestJSON(`${API_URL}/subjects/${id}`, {method:"DELETE"}); closeAppDialog(); await loadSubjects(); await loadTasks(); } catch (error) { dialogMessage(error.message); button.disabled = false; } }
+
+function openTaskEditor(id) {
+    const task = tasksCache.find(t => t.id === id); if (!task) return;
+    openAppDialog(`<h2 id="appDialogTitle">Edit task</h2><form onsubmit="saveTask(event, ${id})"><label for="editTaskTitle">Task title</label><input id="editTaskTitle" required maxlength="200" value="${escapeHTML(task.title)}"><label for="editTaskDescription">Description <span>(optional)</span></label><textarea id="editTaskDescription" rows="3">${escapeHTML(task.description || "")}</textarea><label for="editTaskSubject">Subject</label><select id="editTaskSubject">${subjectOptions(task.subject_id)}</select><label for="editTaskPriority">Priority</label><select id="editTaskPriority">${["Low","Medium","High"].map(p => `<option ${p === task.priority ? "selected" : ""}>${p}</option>`).join("")}</select><label for="editTaskDueDate">Due date <span>(optional)</span></label><input id="editTaskDueDate" type="date" value="${task.due_date || ""}"><div id="dialogMessage"></div><div class="dialog-actions"><button type="button" class="secondary-button" onclick="closeAppDialog()">Cancel</button><button type="submit">Save Changes</button></div></form>`);
+}
+async function saveTask(event, id) {
+    event.preventDefault(); const button = event.submitter; const title = document.getElementById("editTaskTitle").value.trim(); if (!title) return dialogMessage("Task title cannot be blank."); button.disabled = true;
+    try { await requestJSON(`${API_URL}/tasks/${id}`, {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,description:document.getElementById("editTaskDescription").value.trim() || null,subject_id:document.getElementById("editTaskSubject").value ? Number(document.getElementById("editTaskSubject").value) : null,priority:document.getElementById("editTaskPriority").value,due_date:document.getElementById("editTaskDueDate").value || null,completed:tasksCache.find(t => t.id === id).completed})}); closeAppDialog(); await loadTasks(); } catch (error) { dialogMessage(error.message); } finally { button.disabled = false; }
+}
+function confirmTaskDelete(id) { openAppDialog(`<h2 id="appDialogTitle">Delete task?</h2><p>This task will be permanently removed.</p><div id="dialogMessage"></div><div class="dialog-actions"><button type="button" class="secondary-button" onclick="closeAppDialog()">Cancel</button><button type="button" class="danger-button" onclick="deleteTask(${id}, this)">Delete task</button></div>`); }
+async function deleteTask(id, button) { if (button) button.disabled = true; try { await requestJSON(`${API_URL}/tasks/${id}`, {method:"DELETE"}); closeAppDialog(); await loadTasks(); } catch (error) { if (button) button.disabled = false; alert(error.message); } }
+async function toggleTask(id, button) { if (button) button.disabled = true; try { await requestJSON(`${API_URL}/tasks/${id}/toggle`, {method:"PUT"}); await loadTasks(); } catch (error) { alert(error.message); if (button) button.disabled = false; } }
+
+async function initializeEnhancedApp() {
+    initializeWelcome();
+    if (window.lucide) window.lucide.createIcons();
+    loadCurrentDate();
+    updateTimerDisplay();
+    await loadSubjects();
+    await loadTasks();
+    await loadStudyTime();
+    await loadWeeklyStudy();
+    await loadStreak();
+}
+
+initializeEnhancedApp();

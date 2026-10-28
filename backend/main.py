@@ -29,6 +29,18 @@ app.add_middleware(
 )
 
 
+def get_subject_or_404(subject_id: int, db: Session):
+    subject = db.query(models.Subject).filter(models.Subject.id == subject_id).first()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    return subject
+
+
+def validate_subject_reference(subject_id: int | None, db: Session):
+    if subject_id is not None:
+        get_subject_or_404(subject_id, db)
+
+
 # HOME
 
 @app.get("/")
@@ -68,6 +80,45 @@ def get_subjects(
     return db.query(models.Subject).all()
 
 
+@app.put("/subjects/{subject_id}", response_model=schemas.SubjectResponse)
+def update_subject(subject_id: int, subject_update: schemas.SubjectUpdate, db: Session = Depends(get_db)):
+    subject = get_subject_or_404(subject_id, db)
+    if subject_update.completed_topics > subject_update.total_topics:
+        raise HTTPException(status_code=400, detail="Completed topics cannot exceed total topics")
+    subject.name = subject_update.name
+    subject.total_topics = subject_update.total_topics
+    subject.completed_topics = subject_update.completed_topics
+    db.commit()
+    db.refresh(subject)
+    return subject
+
+
+@app.get("/subjects/{subject_id}/dependencies")
+def subject_dependencies(subject_id: int, db: Session = Depends(get_db)):
+    get_subject_or_404(subject_id, db)
+    return {
+        "tasks": db.query(models.Task).filter(models.Task.subject_id == subject_id).count(),
+        "study_sessions": db.query(models.StudySession).filter(models.StudySession.subject_id == subject_id).count(),
+    }
+
+
+@app.delete("/subjects/{subject_id}")
+def delete_subject(subject_id: int, db: Session = Depends(get_db)):
+    subject = get_subject_or_404(subject_id, db)
+    dependencies = {
+        "tasks": db.query(models.Task).filter(models.Task.subject_id == subject_id).count(),
+        "study_sessions": db.query(models.StudySession).filter(models.StudySession.subject_id == subject_id).count(),
+    }
+    if dependencies["tasks"] or dependencies["study_sessions"]:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": "This subject has linked records and cannot be deleted.", **dependencies},
+        )
+    db.delete(subject)
+    db.commit()
+    return {"message": "Subject deleted successfully"}
+
+
 # =========================
 # TASKS
 # =========================
@@ -78,6 +129,7 @@ def create_task(
     db: Session = Depends(get_db)
 ):
 
+    validate_subject_reference(task.subject_id, db)
     new_task = models.Task(
         title=task.title,
         description=task.description,
@@ -99,6 +151,23 @@ def get_tasks(
 ):
 
     return db.query(models.Task).all()
+
+
+@app.put("/tasks/{task_id}", response_model=schemas.TaskResponse)
+def update_task(task_id: int, task_update: schemas.TaskUpdate, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    validate_subject_reference(task_update.subject_id, db)
+    task.title = task_update.title
+    task.description = task_update.description
+    task.priority = task_update.priority
+    task.due_date = task_update.due_date
+    task.subject_id = task_update.subject_id
+    task.completed = task_update.completed
+    db.commit()
+    db.refresh(task)
+    return task
 
 
 # COMPLETE / UNCOMPLETE TASK
@@ -160,15 +229,7 @@ def update_subject_progress(
     db: Session = Depends(get_db)
 ):
 
-    subject = db.query(models.Subject).filter(
-        models.Subject.id == subject_id
-    ).first()
-
-    if not subject:
-        raise HTTPException(
-            status_code=404,
-            detail="Subject not found"
-        )
+    subject = get_subject_or_404(subject_id, db)
 
     if completed_topics < 0:
         raise HTTPException(
@@ -200,6 +261,7 @@ def create_study_session(
     db: Session = Depends(get_db)
 ):
 
+    validate_subject_reference(session.subject_id, db)
     new_session = models.StudySession(
         subject_id=session.subject_id,
         duration=session.duration,
