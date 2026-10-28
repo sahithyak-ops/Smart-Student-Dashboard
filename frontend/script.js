@@ -381,7 +381,7 @@ async function loadSubjects() {
 
                 dashboardSubjects.innerHTML =
                     `<p class="empty">
-                        Add your first subject 📚
+                        Add your first subject.
                     </p>`;
             }
 
@@ -849,7 +849,7 @@ async function loadTasks() {
                                 subjectName
                                     ? `
                                         <p>
-                                            📚 ${
+                                            ${
                                                 escapeHTML(
                                                     subjectName
                                                 )
@@ -863,7 +863,7 @@ async function loadTasks() {
                                 task.due_date
                                     ? `
                                         <p>
-                                            📅 Due:
+                                            Due:
                                             ${task.due_date}
                                         </p>
                                     `
@@ -947,7 +947,7 @@ async function loadTasks() {
                                                 ${task.id}
                                             )"
                                         >
-                                            🗑️
+                                            ×
                                         </button>
 
                                     </div>
@@ -971,7 +971,7 @@ async function loadTasks() {
 
                 dashboardTasks.innerHTML =
                     `<p class="empty">
-                        No tasks for now 🎉
+                        No tasks for now.
                     </p>`;
 
             }
@@ -1025,7 +1025,7 @@ async function loadTasks() {
 
                                             ${
                                                 subjectName
-                                                    ? ` • 📚 ${
+                                                    ? ` • ${
                                                         escapeHTML(
                                                             subjectName
                                                         )
@@ -2215,12 +2215,117 @@ function escapeHTML(value) {
 }
 
 
+
+// =====================================================
+// LUNERA PROFILE & FIRST-VISIT WELCOME
+// =====================================================
+const LUNERA_PROFILE_KEY = "luneraProfileV1";
+
+function getLuneraProfile() {
+    try {
+        return JSON.parse(localStorage.getItem(LUNERA_PROFILE_KEY) || "null");
+    } catch (error) {
+        return null;
+    }
+}
+
+function applyLuneraProfile(profile) {
+    const heading = document.getElementById("welcomeHeading");
+    const subheading = document.getElementById("welcomeSubheading");
+    if (!heading || !subheading) return;
+
+    const name = (profile?.name || "").trim();
+    const quote = (profile?.quote || "").trim();
+
+    heading.textContent = name ? `Good to see you, ${name}.` : "Your space to make progress.";
+    subheading.textContent = quote || "Make room for progress, one focused session at a time.";
+}
+
+function openWelcomeEditor(editing = false) {
+    const overlay = document.getElementById("welcomeOverlay");
+    const nameInput = document.getElementById("profileName");
+    const quoteInput = document.getElementById("profileQuote");
+    const title = document.getElementById("welcomeTitle");
+    const intro = overlay?.querySelector(".welcome-intro");
+    const skipButton = document.getElementById("skipQuoteBtn");
+    const submitButton = document.getElementById("welcomeSubmitBtn");
+    const savedProfile = getLuneraProfile();
+
+    if (!overlay || !nameInput || !quoteInput) return;
+    nameInput.value = savedProfile?.name || "";
+    quoteInput.value = savedProfile?.quote || "";
+    overlay.dataset.editing = editing ? "true" : "false";
+    if (title) title.textContent = editing ? "Make it yours." : "Make room for progress.";
+    if (intro) intro.textContent = editing
+        ? "Update your name or add a personal reminder whenever you like."
+        : "A calmer space to plan your work, focus on what matters, and see how far you’ve come.";
+    if (skipButton) skipButton.textContent = editing ? "Save without quote" : "Continue without quote";
+    if (submitButton) submitButton.innerHTML = editing ? 'Save changes <span aria-hidden="true">→</span>' : 'Continue <span aria-hidden="true">→</span>';
+    overlay.classList.add("is-visible");
+    overlay.setAttribute("aria-hidden", "false");
+    window.setTimeout(() => nameInput.focus(), 80);
+}
+
+function finishWelcome(skipQuote = false) {
+    const nameInput = document.getElementById("profileName");
+    const quoteInput = document.getElementById("profileQuote");
+    const name = (nameInput?.value || "").trim();
+
+    if (!name) {
+        nameInput?.setCustomValidity("Please enter your name to continue.");
+        nameInput?.reportValidity();
+        nameInput?.focus();
+        return;
+    }
+    nameInput.setCustomValidity("");
+
+    const profile = {
+        name: name.slice(0, 40),
+        quote: skipQuote ? "" : (quoteInput?.value || "").trim().slice(0, 180)
+    };
+    try {
+        localStorage.setItem(LUNERA_PROFILE_KEY, JSON.stringify(profile));
+    } catch (error) {
+        console.warn("Could not save Lunera profile in this browser.", error);
+    }
+
+    applyLuneraProfile(profile);
+    const overlay = document.getElementById("welcomeOverlay");
+    overlay?.classList.remove("is-visible");
+    overlay?.setAttribute("aria-hidden", "true");
+}
+
+function initializeWelcome() {
+    const overlay = document.getElementById("welcomeOverlay");
+    const form = document.getElementById("welcomeForm");
+    const skipButton = document.getElementById("skipQuoteBtn");
+    const editButton = document.getElementById("editWelcomeBtn");
+    if (!overlay || !form || !skipButton) return;
+
+    const savedProfile = getLuneraProfile();
+    if (savedProfile?.name) {
+        applyLuneraProfile(savedProfile);
+    } else {
+        openWelcomeEditor(false);
+    }
+
+    form.addEventListener("submit", event => {
+        event.preventDefault();
+        finishWelcome(false);
+    });
+    skipButton.addEventListener("click", () => finishWelcome(true));
+    editButton?.addEventListener("click", () => openWelcomeEditor(true));
+}
+
+
 // =====================================================
 // INITIALIZE APP
 // =====================================================
 
 async function initializeApp() {
 
+    initializeWelcome();
+    if (window.lucide) window.lucide.createIcons();
     loadCurrentDate();
 
     updateTimerDisplay();

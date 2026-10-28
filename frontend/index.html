@@ -10,12 +10,11 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Lunera</title>
+    <title>Lunera — Student Dashboard</title>
 
-    <link
-        rel="stylesheet"
-        href="style.css"
-    >
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="style.css">
 
 </head>
 
@@ -31,7 +30,7 @@
 
     <aside class="sidebar">
 
-        <h1>Lunera</h1>
+        <h1 class="brand-lockup"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M30.8 7.5a17 17 0 1 0 9.7 29.8A18.4 18.4 0 0 1 30.8 7.5Z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><path d="m35 8 1.5 4.1 4.1 1.5-4.1 1.5L35 20l-1.5-4.9-4.1-1.5 4.1-1.5L35 8Z" fill="#D6C38D"/></svg></span><span>Lunera</span></h1>
 
 
         <nav>
@@ -40,7 +39,7 @@
                 class="nav-btn active"
                 onclick="showSection('dashboard', this)"
             >
-                📊 Dashboard
+                <i data-lucide="layout-dashboard" aria-hidden="true"></i> Dashboard
             </button>
 
 
@@ -48,7 +47,7 @@
                 class="nav-btn"
                 onclick="showSection('tasks', this)"
             >
-                ✅ Tasks
+                <i data-lucide="check-square" aria-hidden="true"></i> Tasks
             </button>
 
 
@@ -56,7 +55,7 @@
                 class="nav-btn"
                 onclick="showSection('subjects', this)"
             >
-                📚 Subjects
+                <i data-lucide="book-open" aria-hidden="true"></i> Subjects
             </button>
 
 
@@ -64,7 +63,7 @@
                 class="nav-btn"
                 onclick="showSection('timer', this)"
             >
-                ⏱️ Study Timer
+                <i data-lucide="timer" aria-hidden="true"></i> Study Timer
             </button>
 
 
@@ -72,15 +71,13 @@
                 class="nav-btn"
                 onclick="showSection('analytics', this)"
             >
-                📈 Analytics
+                <i data-lucide="chart-no-axes-combined" aria-hidden="true"></i> Analytics
             </button>
 
         </nav>
 
 
-        <div class="sidebar-bottom">
-            <p>Stay consistent 💪</p>
-        </div>
+        <div class="sidebar-bottom"><span class="sidebar-note-label">A NOTE TO SELF</span><p>Progress, not perfection.</p></div>
 
     </aside>
 
@@ -106,21 +103,24 @@
 
                 <div>
 
-                    <h2>
-                        Good evening! 👋
+                    <h2 id="welcomeHeading">
+                        Your space to make progress.
                     </h2>
 
-                    <p>
-                        Let's make today productive.
+                    <p id="welcomeSubheading">
+                        A little focus today goes a long way.
                     </p>
 
                 </div>
 
 
-                <div
-                    class="date"
-                    id="currentDate"
-                ></div>
+                <div class="topbar-actions">
+                    <button type="button" class="profile-edit-button" id="editWelcomeBtn" aria-label="Edit your welcome and motivation">
+                        <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+                        <span>Edit welcome</span>
+                    </button>
+                    <div class="date" id="currentDate"></div>
+                </div>
 
             </header>
 
@@ -132,7 +132,7 @@
 
                 <div class="stat-card">
 
-                    <span>📚</span>
+                    <span><i data-lucide="book-open" aria-hidden="true"></i></span>
 
                     <h3 id="subjectCount">
                         0
@@ -147,7 +147,7 @@
 
                 <div class="stat-card">
 
-                    <span>✅</span>
+                    <span><i data-lucide="check-square" aria-hidden="true"></i></span>
 
                     <h3 id="taskCount">
                         0
@@ -162,7 +162,7 @@
 
                 <div class="stat-card">
 
-                    <span>🔥</span>
+                    <span><i data-lucide="flame" aria-hidden="true"></i></span>
 
                     <h3 id="streakCount">
                         0
@@ -177,7 +177,7 @@
 
                 <div class="stat-card">
 
-                    <span>⏱️</span>
+                    <span><i data-lucide="clock-3" aria-hidden="true"></i></span>
 
                     <h3 id="studyTime">
                         0h 0m
@@ -284,7 +284,7 @@
                     <div id="dashboardTasks">
 
                         <p class="empty">
-                            No tasks for now 🎉
+                            No tasks for now.
                         </p>
 
                     </div>
@@ -349,7 +349,7 @@
                     <div id="dashboardSubjects">
 
                         <p class="empty">
-                            Add your first subject 📚
+                            Add your first subject.
                         </p>
 
                     </div>
@@ -376,7 +376,7 @@
                 <div>
 
                     <h2>
-                        Tasks ✅
+                        Tasks
                     </h2>
 
                     <p>
@@ -489,7 +489,7 @@
                 <div>
 
                     <h2>
-                        Subjects 📚
+                        Subjects
                     </h2>
 
                     <p>
@@ -571,7 +571,7 @@
                 <div>
 
                     <h2>
-                        Study Timer ⏱️
+                        Study Timer
                     </h2>
 
                     <p>
@@ -658,7 +658,7 @@
                 <div>
 
                     <h2>
-                        Analytics 📈
+                        Analytics
                     </h2>
 
                     <p>
@@ -784,7 +784,31 @@
 </div>
 
 
-<script src="script.js?v=4"></script>
+
+
+<div class="welcome-overlay" id="welcomeOverlay" aria-hidden="true">
+  <section class="welcome-dialog" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+    <div class="welcome-dialog-brand">
+      <span class="welcome-emblem" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M30.8 7.5a17 17 0 1 0 9.7 29.8A18.4 18.4 0 0 1 30.8 7.5Z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><path d="m35 8 1.5 4.1 4.1 1.5-4.1 1.5-1.5 4.9-1.5-4.9-4.1-1.5 4.1-1.5L35 8Z" fill="#D6C38D"/></svg></span>
+      <span>Lunera</span>
+    </div>
+    <p class="welcome-eyebrow">YOUR PERSONAL STUDY SPACE</p>
+    <h2 id="welcomeTitle">Make room for progress.</h2>
+    <p class="welcome-intro">A calmer space to plan your work, focus on what matters, and see how far you’ve come.</p>
+    <form id="welcomeForm">
+      <label for="profileName">What should we call you?</label>
+      <input id="profileName" name="profileName" maxlength="40" autocomplete="given-name" placeholder="Your name" required>
+      <label for="profileQuote">A thought to keep you going <span>(optional)</span></label>
+      <textarea id="profileQuote" name="profileQuote" maxlength="180" rows="2" placeholder="A personal reminder, goal, or quote"></textarea>
+      <div class="welcome-actions">
+        <button class="welcome-skip" type="button" id="skipQuoteBtn">Continue without quote</button>
+        <button class="welcome-submit" type="submit" id="welcomeSubmitBtn">Continue <span aria-hidden="true">→</span></button>
+      </div>
+      
+    </form>
+  </section>
+</div>
+\n<script src="https://unpkg.com/lucide@latest"></script>\n<script src="script.js?v=5"></script>
 
 </body>
 
